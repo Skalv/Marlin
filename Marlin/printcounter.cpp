@@ -1,4 +1,4 @@
-/**
+/*
  * Marlin 3D Printer Firmware
  * Copyright (C) 2016 MarlinFirmware [https://github.com/MarlinFirmware/Marlin]
  *
@@ -120,7 +120,7 @@ void PrintCounter::showStats() {
   #if ENABLED(DEBUG_PRINTCOUNTER)
     SERIAL_ECHOPGM(" (");
     SERIAL_ECHO(this->data.printTime);
-    SERIAL_CHAR(')');
+    SERIAL_ECHOPGM(")");
   #endif
 
   elapsed = this->data.longestPrint;
@@ -132,7 +132,7 @@ void PrintCounter::showStats() {
   #if ENABLED(DEBUG_PRINTCOUNTER)
     SERIAL_ECHOPGM(" (");
     SERIAL_ECHO(this->data.longestPrint);
-    SERIAL_CHAR(')');
+    SERIAL_ECHOPGM(")");
   #endif
 
   SERIAL_EOL;
@@ -188,8 +188,7 @@ bool PrintCounter::start() {
     }
     return true;
   }
-
-  return false;
+  else return false;
 }
 
 // @Override

@@ -34,7 +34,7 @@
 
 #define BOARD_NAME "Sanguinololu 1.2"
 
-#ifdef __AVR_ATmega1284P__
+#if defined(__AVR_ATmega1284P__)
   #define LARGE_FLASH true
 #endif
 

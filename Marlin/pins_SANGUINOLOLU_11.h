@@ -24,33 +24,6 @@
  * Sanguinololu board pin assignments
  */
 
-/**
- * Rev B    26 DEC 2016
- *
- * 1) added pointer to a current Arduino IDE extension
- * 2) added support for M3, M4 & M5 spindle control commands
- * 3) added case light pin definition
- *
- */
-
-/**
- * A useable Arduino IDE extension (board manager) can be found at
- * https://github.com/Lauszus/Sanguino
- *
- * This extension has been tested on Arduino 1.6.12 & 1.8.0
- *
- * Here's the JSON path:
- * https://raw.githubusercontent.com/Lauszus/Sanguino/master/package_lauszus_sanguino_index.json
- *
- * When installing select 1.0.2
- *
- * Installation instructions can be found at https://learn.sparkfun.com/pages/CustomBoardsArduino
- * Just use the above JSON URL instead of Sparkfun's JSON.
- *
- * Once installed select the Sanguino board and then select the CPU.
- *
- */
-
 #if !defined(__AVR_ATmega644P__) && !defined(__AVR_ATmega1284P__)
   #error "Oops!  Make sure you have 'Sanguino' selected from the 'Tools -> Boards' menu."
 #endif
@@ -67,6 +40,13 @@
 #define X_STOP_PIN         18
 #define Y_STOP_PIN         19
 #define Z_STOP_PIN         20
+
+//
+// Z Probe (when not Z_MIN_PIN)
+//
+#if ENABLED(Z_PROBE_SLED)
+  #define SLED_PIN         -1
+#endif
 
 //
 // Steppers
@@ -123,24 +103,17 @@
 //
 // Misc. Functions
 //
-
 /**
- * In some versions of the Sanguino libraries the pin
- * definitions are wrong, with SDSS = 24 and LED_PIN = 28 (Melzi).
- * If you encounter issues with these pins, upgrade your
- * Sanguino libraries! See #368.
+ * On some broken versions of the Sanguino libraries the pin definitions are wrong,
+ * which then needs SDSS as pin 24. But you should upgrade your Sanguino libraries! See #368.
  */
 //#define SDSS               24
 #define SDSS               31
 
 #if IS_MELZI
-  #define LED_PIN           27
+  #define LED_PIN          27 // On some broken versions of the Sanguino libraries the pin definitions are wrong, so LED_PIN needs to be 28. But you should upgrade your Sanguino libraries! See #368.
 #elif MB(STB_11)
   #define LCD_BACKLIGHT_PIN 17 // LCD backlight LED
-#endif
-
-#if DISABLED(SPINDLE_LASER_ENABLE) && ENABLED(SANGUINOLOLU_V_1_2) && !(ENABLED(ULTRA_LCD) && ENABLED(NEWPANEL))  // try to use IO Header
-  #define CASE_LIGHT_PIN         4   // MUST BE HARDWARE PWM  - see if IO Header is available
 #endif
 
 //
@@ -148,6 +121,10 @@
 //
 #if ENABLED(ULTRA_LCD) && ENABLED(NEWPANEL)
 
+  // No buzzer installed
+  #define BEEPER_PIN -1
+
+  // LCD Pins
   #if ENABLED(DOGLCD)
 
     #if ENABLED(U8GLIB_ST7920) // SPI GLCD 12864 ST7920 ( like [www.digole.com] ) For Melzi V2.0
@@ -160,7 +137,7 @@
         // Marlin so this can be used for BEEPER_PIN. You can use this pin
         // with M42 instead of BEEPER_PIN.
         #define BEEPER_PIN      27
-      #else        // Sanguinololu 1.3
+      #else         // Sanguinololu 1.3
         #define LCD_PINS_RS      4
         #define LCD_PINS_ENABLE 17
         #define LCD_PINS_D4     30
@@ -172,19 +149,8 @@
     #else // DOGM SPI LCD Support
 
       #define DOGLCD_A0         30
+      #define DOGLCD_CS         29
       #define LCD_CONTRAST       1
-
-      #if ENABLED(MAKRPANEL)
-
-        #define BEEPER_PIN      29
-        #define DOGLCD_CS       17
-        #define LCD_BACKLIGHT_PIN 28 // PA3
-
-      #else // !MAKRPANEL
-
-        #define DOGLCD_CS       29
-
-      #endif
 
     #endif
 
@@ -194,7 +160,7 @@
     //#define LCD_SCREEN_ROT_180
     //#define LCD_SCREEN_ROT_270
 
-  #else // !DOGLCD
+  #else // !DOGLCD - Standard Hitachi LCD controller
 
     #define LCD_PINS_RS          4
     #define LCD_PINS_ENABLE     17
@@ -205,9 +171,9 @@
 
   #endif // !DOGLCD
 
+  //The encoder and click button
   #define BTN_EN1               11
   #define BTN_EN2               10
-
   #if ENABLED(LCD_I2C_PANELOLU2)
     #if IS_MELZI
       #define BTN_ENC           29
@@ -215,62 +181,38 @@
     #else
       #define BTN_ENC           30
     #endif
-  #else  // !Panelolu2
+  #else
     #define BTN_ENC             16
     #define LCD_SDSS            28 // Smart Controller SD card reader rather than the Melzi
-  #endif // !Panelolu2
+  #endif // Panelolu2
 
   #define SD_DETECT_PIN         -1
 
-#endif // ULTRA_LCD && NEWPANEL
-
-//
-// M3/M4/M5 - Spindle/Laser Control
-//
-#if ENABLED(SPINDLE_LASER_ENABLE)
-  #if !MB(AZTEEG_X1) && ENABLED(SANGUINOLOLU_V_1_2) && !(ENABLED(ULTRA_LCD) && ENABLED(NEWPANEL))  // try to use IO Header
-
-    #define SPINDLE_LASER_ENABLE_PIN 10  // Pin should have a pullup/pulldown!
-    #define SPINDLE_LASER_PWM_PIN     4  // MUST BE HARDWARE PWM
-    #define SPINDLE_DIR_PIN          11
-
-  #elif !MB(MELZI)  // use X stepper motor socket
-
-    /**
-     *  To control the spindle speed and have an LCD you must sacrifice
-     *  the Extruder and pull some signals off the X stepper driver socket.
-     *
-     *  The following assumes:
-     *   - The X stepper driver socket is empty
-     *   - The extruder driver socket has a driver board plugged into it
-     *   - The X stepper wires are attached the the extruder connector
-     */
-
-    /**
-     *  Where to get the spindle signals
-     *
-     *      spindle signal          socket name       socket name
-     *                                         -------
-     *                               /ENABLE  O|     |O  VMOT
-     *                                   MS1  O|     |O  GND
-     *                                   MS2  O|     |O  2B
-     *                                   MS3  O|     |O  2A
-     *                                /RESET  O|     |O  1A
-     *                                /SLEEP  O|     |O  1B
-     *  SPINDLE_LASER_PWM_PIN  STEP  O|     |O  VDD
-     *  SPINDLE_LASER_ENABLE_PIN         DIR  O|     |O  GND
-     *                                         -------
-     *
-     *  Note: Socket names vary from vendor to vendor.
-     */
-    #undef X_DIR_PIN
-    #undef X_ENABLE_PIN
-    #undef X_STEP_PIN
-    #define X_DIR_PIN                 0
-    #define X_ENABLE_PIN             14
-    #define X_STEP_PIN                1
-    #define SPINDLE_LASER_PWM_PIN    15  // MUST BE HARDWARE PWM
-    #define SPINDLE_LASER_ENABLE_PIN 21  // Pin should have a pullup!
-    #define SPINDLE_DIR_PIN          -1  // No pin available on the socket for the direction pin
+  #if ENABLED(ADC_KEYPAD)
+    #define ADC_KEYPAD_PIN       1
   #endif
-#endif // SPINDLE_LASER_ENABLE
+
+#elif ENABLED(MAKRPANEL)
+
+  #define BEEPER_PIN            29
+
+  // Pins for DOGM SPI LCD Support
+  #define DOGLCD_A0             30
+  #define DOGLCD_CS             17
+  #define LCD_BACKLIGHT_PIN     28 // backlight LED on PA3
+  // GLCD features
+  #define LCD_CONTRAST           1
+  // Uncomment screen orientation
+  #define LCD_SCREEN_ROT_0
+  //#define LCD_SCREEN_ROT_90
+  //#define LCD_SCREEN_ROT_180
+  //#define LCD_SCREEN_ROT_270
+  //The encoder and click button
+  #define BTN_EN1               11
+  #define BTN_EN2               10
+  #define BTN_ENC               16
+
+  #define SD_DETECT_PIN         -1
+
+#endif // MAKRPANEL
+

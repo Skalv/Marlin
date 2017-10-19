@@ -50,9 +50,6 @@
     #define REPRAPWORLD_KEYPAD
     #define REPRAPWORLD_KEYPAD_MOVE_STEP 10.0
     #define ADC_KEYPAD
-    // this helps to implement ADC_KEYPAD menus
-    #define ENCODER_STEPS_PER_MENU_ITEM 1
-    #define REVERSE_MENU_DIRECTION
   #endif
 
   #if ENABLED(miniVIKI) || ENABLED(VIKI2) || ENABLED(ELB_FULL_GRAPHIC_CONTROLLER)
@@ -76,14 +73,6 @@
 
   #endif
 
-  #if ENABLED(OLED_PANEL_TINYBOY2)
-    #define U8GLIB_SSD1306
-    #define ULTIPANEL
-    #define NEWPANEL
-    #define REVERSE_ENCODER_DIRECTION
-    #define REVERSE_MENU_DIRECTION
-  #endif
-
   // Generic support for SSD1306 / SH1106 OLED based LCDs.
   #if ENABLED(U8GLIB_SSD1306) || ENABLED(U8GLIB_SH1106)
     #define ULTRA_LCD  //general LCD support, also 16x2
@@ -105,6 +94,7 @@
     #define DOGLCD
     #define U8GLIB_ST7920
     #define REPRAP_DISCOUNT_SMART_CONTROLLER
+	  #define SHOW_CUSTOM_BOOTSCREEN
   #endif
 
   #if ENABLED(ULTIMAKERCONTROLLER)              \
@@ -113,10 +103,6 @@
    || ENABLED(RIGIDBOT_PANEL)                   \
    || ENABLED(REPRAPWORLD_KEYPAD)
     #define ULTIPANEL
-    #define NEWPANEL
-  #endif
-
-  #if ENABLED(REPRAPWORLD_KEYPAD)
     #define NEWPANEL
   #endif
 
@@ -179,7 +165,7 @@
   #endif
 
   // Set encoder detents for well-known controllers
-  #if ENABLED(miniVIKI) || ENABLED(VIKI2) || ENABLED(ELB_FULL_GRAPHIC_CONTROLLER) || ENABLED(OLED_PANEL_TINYBOY2) \
+  #if ENABLED(miniVIKI) || ENABLED(VIKI2) || ENABLED(ELB_FULL_GRAPHIC_CONTROLLER) \
    || ENABLED(BQ_LCD_SMART_CONTROLLER) || ENABLED(LCD_I2C_PANELOLU2) || ENABLED(REPRAP_DISCOUNT_SMART_CONTROLLER)
     #ifndef ENCODER_PULSES_PER_STEP
       #define ENCODER_PULSES_PER_STEP 4
@@ -218,7 +204,7 @@
     #ifndef LCD_HEIGHT
       #define LCD_HEIGHT 4
     #endif
-  #else // no panel but just LCD
+  #else //no panel but just LCD
     #if ENABLED(ULTRA_LCD)
       #ifndef LCD_WIDTH
         #define LCD_WIDTH 16
@@ -243,12 +229,8 @@
     #define LCD_STR_DEGREE      "\x09"
 
     #define LCD_STR_SPECIAL_MAX '\x09'
-    // Maximum here is 0x1F because 0x20 is ' ' (space) and the normal charsets begin.
+    // Maximum here is 0x1f because 0x20 is ' ' (space) and the normal charsets begin.
     // Better stay below 0x10 because DISPLAY_CHARSET_HD44780_WESTERN begins here.
-
-    // Symbol characters
-    #define LCD_STR_FILAM_DIA   "\xf8"
-    #define LCD_STR_FILAM_MUL   "\xa4"
   #else
     /* Custom characters defined in the first 8 characters of the LCD */
     #define LCD_STR_BEDTEMP     "\x00"  // Print only as a char. This will have 'unexpected' results when used in a string!
@@ -304,34 +286,36 @@
    *  TOOL_E_INDEX - Index to use when getting/setting the tool state
    *
    */
-  #if ENABLED(SINGLENOZZLE) || ENABLED(MIXING_EXTRUDER)         // One hotend, one thermistor, no XY offset
-    #define HOTENDS       1
+  #if ENABLED(SINGLENOZZLE)             // One hotend, multi-extruder
+    #define HOTENDS      1
+    #define E_STEPPERS   EXTRUDERS
+    #define E_MANUAL     EXTRUDERS
+    #define TOOL_E_INDEX current_block->active_extruder
     #undef TEMP_SENSOR_1_AS_REDUNDANT
     #undef HOTEND_OFFSET_X
     #undef HOTEND_OFFSET_Y
-  #else                                                         // Two hotends
-    #define HOTENDS       EXTRUDERS
-    #if ENABLED(SWITCHING_NOZZLE) && !defined(HOTEND_OFFSET_Z)
+  #elif ENABLED(SWITCHING_EXTRUDER)     // One E stepper, unified E axis, two hotends
+    #define HOTENDS      EXTRUDERS
+    #define E_STEPPERS   1
+    #define E_MANUAL     1
+    #define TOOL_E_INDEX 0
+    #ifndef HOTEND_OFFSET_Z
       #define HOTEND_OFFSET_Z { 0 }
     #endif
-  #endif
-
-  #if ENABLED(SWITCHING_EXTRUDER) || ENABLED(MIXING_EXTRUDER)   // Unified E axis
-    #if ENABLED(MIXING_EXTRUDER)
-      #define E_STEPPERS  MIXING_STEPPERS
-    #else
-      #define E_STEPPERS  1                                     // One E stepper
-    #endif
-    #define E_MANUAL      1
-    #define TOOL_E_INDEX  0
-  #else
-    #define E_STEPPERS    EXTRUDERS
-    #define E_MANUAL      EXTRUDERS
-    #define TOOL_E_INDEX  current_block->active_extruder
+  #elif ENABLED(MIXING_EXTRUDER)        // Multi-stepper, unified E axis, one hotend
+    #define HOTENDS      1
+    #define E_STEPPERS   MIXING_STEPPERS
+    #define E_MANUAL     1
+    #define TOOL_E_INDEX 0
+  #else                                 // One stepper, E axis, and hotend per tool
+    #define HOTENDS      EXTRUDERS
+    #define E_STEPPERS   EXTRUDERS
+    #define E_MANUAL     EXTRUDERS
+    #define TOOL_E_INDEX current_block->active_extruder
   #endif
 
   /**
-   * DISTINCT_E_FACTORS affects how some E factors are accessed
+   * Distinct E Factors – Disable by commenting out DISTINCT_E_FACTORS
    */
   #if ENABLED(DISTINCT_E_FACTORS) && E_STEPPERS > 1
     #define XYZE_N (XYZ + E_STEPPERS)
@@ -356,9 +340,6 @@
     #undef DEACTIVATE_SERVOS_AFTER_MOVE
     #undef SERVO_DELAY
     #define SERVO_DELAY 50
-    #ifndef BLTOUCH_DELAY
-      #define BLTOUCH_DELAY 375
-    #endif
     #undef Z_SERVO_ANGLES
     #define Z_SERVO_ANGLES { BLTOUCH_DEPLOY, BLTOUCH_STOW }
 
@@ -367,10 +348,6 @@
     #define BLTOUCH_SELFTEST 120
     #define BLTOUCH_RESET    160
     #define _TEST_BLTOUCH(P) (READ(P##_PIN) != P##_ENDSTOP_INVERTING)
-
-    // Always disable probe pin inverting for BLTouch
-    #undef Z_MIN_PROBE_ENDSTOP_INVERTING
-    #define Z_MIN_PROBE_ENDSTOP_INVERTING false
 
     #if ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
       #undef Z_MIN_ENDSTOP_INVERTING
@@ -387,27 +364,16 @@
   #define HAS_Z_SERVO_ENDSTOP (defined(Z_ENDSTOP_SERVO_NR) && Z_ENDSTOP_SERVO_NR >= 0)
 
   /**
-   * UBL has its own manual probing, so this just causes trouble.
-   */
-  #if ENABLED(AUTO_BED_LEVELING_UBL)
-    #undef PROBE_MANUALLY
-  #endif
-
-  /**
    * Set a flag for any enabled probe
    */
-  #define PROBE_SELECTED (ENABLED(PROBE_MANUALLY) || ENABLED(FIX_MOUNTED_PROBE) || ENABLED(Z_PROBE_ALLEN_KEY) || HAS_Z_SERVO_ENDSTOP || ENABLED(Z_PROBE_SLED) || ENABLED(SOLENOID_PROBE))
+  #define PROBE_SELECTED (ENABLED(FIX_MOUNTED_PROBE) || ENABLED(Z_PROBE_ALLEN_KEY) || HAS_Z_SERVO_ENDSTOP || ENABLED(Z_PROBE_SLED))
 
   /**
    * Clear probe pin settings when no probe is selected
    */
-  #if !PROBE_SELECTED || ENABLED(PROBE_MANUALLY)
+  #if !PROBE_SELECTED
     #undef Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN
     #undef Z_MIN_PROBE_ENDSTOP
   #endif
 
-  #define HAS_SOFTWARE_ENDSTOPS (ENABLED(MIN_SOFTWARE_ENDSTOPS) || ENABLED(MAX_SOFTWARE_ENDSTOPS))
-  #define HAS_RESUME_CONTINUE (ENABLED(NEWPANEL) || ENABLED(EMERGENCY_PARSER))
-  #define HAS_COLOR_LEDS (ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED))
-
-#endif // CONDITIONALS_LCD_H
+#endif //CONDITIONALS_LCD_H

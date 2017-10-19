@@ -160,18 +160,12 @@ class Planner {
                  min_travel_feedrate_mm_s;
 
     #if HAS_ABL
-      static bool abl_enabled;              // Flag that bed leveling is enabled
-      #if ABL_PLANAR
-        static matrix_3x3 bed_level_matrix; // Transform to compensate for bed level
-      #endif
+      static bool abl_enabled;            // Flag that bed leveling is enabled
+      static matrix_3x3 bed_level_matrix; // Transform to compensate for bed level
     #endif
 
     #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
       static float z_fade_height, inverse_z_fade_height;
-    #endif
-
-    #if ENABLED(LIN_ADVANCE)
-      static float extruder_advance_k, advance_ed_ratio;
     #endif
 
   private:
@@ -215,6 +209,7 @@ class Planner {
 
     #if ENABLED(LIN_ADVANCE)
       static float position_float[NUM_AXIS];
+      static float extruder_advance_k;
     #endif
 
     #if ENABLED(ULTRA_LCD)
@@ -268,6 +263,10 @@ class Planner {
       #define ARG_Y const float &ly
       #define ARG_Z const float &lz
 
+    #endif
+
+    #if ENABLED(LIN_ADVANCE)
+      void advance_M905(const float &k);
     #endif
 
     /**
@@ -346,7 +345,13 @@ class Planner {
     static void set_position_mm_kinematic(const float position[NUM_AXIS]);
     static void set_position_mm(const AxisEnum axis, const float &v);
     static FORCE_INLINE void set_z_position_mm(const float &z) { set_position_mm(Z_AXIS, z); }
-    static FORCE_INLINE void set_e_position_mm(const float &e) { set_position_mm(AxisEnum(E_AXIS), e); }
+    static FORCE_INLINE void set_e_position_mm(const float &e) {
+      set_position_mm(AxisEnum(E_AXIS
+        #if ENABLED(DISTINCT_E_FACTORS)
+          + active_extruder
+        #endif
+      ), e);
+    }
 
     /**
      * Sync from the stepper positions. (e.g., after an interrupted move)
@@ -399,7 +404,7 @@ class Planner {
         // Doesn't matter because block_buffer_runtime_us is already too small an estimation.
         bbru >>= 10;
         // limit to about a minute.
-        NOMORE(bbru, 0xFFFFul);
+        NOMORE(bbru, 0xfffful);
         return bbru;
       }
 
@@ -412,7 +417,9 @@ class Planner {
     #endif
 
     #if ENABLED(AUTOTEMP)
-      static float autotemp_min, autotemp_max, autotemp_factor;
+      static float autotemp_max;
+      static float autotemp_min;
+      static float autotemp_factor;
       static bool autotemp_enabled;
       static void getHighESpeed();
       static void autotemp_M104_M109();
@@ -470,8 +477,6 @@ class Planner {
     static void recalculate();
 
 };
-
-#define PLANNER_XY_FEEDRATE() (min(planner.max_feedrate_mm_s[X_AXIS], planner.max_feedrate_mm_s[Y_AXIS]))
 
 extern Planner planner;
 

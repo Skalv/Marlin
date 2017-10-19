@@ -38,16 +38,12 @@
   void lcd_init();
   bool lcd_hasstatus();
   void lcd_setstatus(const char* message, const bool persist=false);
-  void lcd_setstatusPGM(const char* message, const int8_t level=0);
-  void lcd_setalertstatusPGM(const char* message);
-  void lcd_status_printf_P(const uint8_t level, const char * const fmt, ...);
+  void lcd_setstatuspgm(const char* message, const uint8_t level=0);
+  void lcd_setalertstatuspgm(const char* message);
   void lcd_reset_alert_level();
   void lcd_kill_screen();
   void kill_screen(const char* lcd_msg);
   bool lcd_detected(void);
-
-  extern uint8_t lcdDrawUpdate;
-  inline void lcd_refresh() { lcdDrawUpdate = LCDVIEW_CLEAR_CALL_REDRAW; }
 
   #if HAS_BUZZER
     void lcd_buzz(long duration, uint16_t freq);
@@ -58,17 +54,21 @@
   #endif
 
   #if ENABLED(ADC_KEYPAD)
-    uint8_t get_ADC_keyValue();
+	uint8_t get_ADC_keyValue();
   #endif
 
   #if ENABLED(DOGLCD)
-    extern uint16_t lcd_contrast;
-    void set_lcd_contrast(const uint16_t value);
+    extern int lcd_contrast;
+    void set_lcd_contrast(int value);
   #elif ENABLED(SHOW_BOOTSCREEN)
     void bootscreen();
   #endif
 
+  #define LCD_MESSAGEPGM(x) lcd_setstatuspgm(PSTR(x))
+  #define LCD_ALERTMESSAGEPGM(x) lcd_setalertstatuspgm(PSTR(x))
+
   #define LCD_UPDATE_INTERVAL 100
+  #define LCD_TIMEOUT_TO_STATUS 15000
 
   #if ENABLED(ULTIPANEL)
 
@@ -82,14 +82,13 @@
     #define EN_B (_BV(BLEN_B))
     #define EN_C (_BV(BLEN_C))
 
-    extern volatile uint8_t buttons;  // The last-checked buttons in a bit array.
+    extern volatile uint8_t buttons;  //the last checked buttons in a bit array.
     void lcd_buttons_update();
-    void lcd_quick_feedback();        // Audible feedback for a button click - could also be visual
-    void lcd_completion_feedback(const bool good=true);
+    void lcd_quick_feedback(); // Audible feedback for a button click - could also be visual
 
-    #if ENABLED(ADVANCED_PAUSE_FEATURE)
-      void lcd_advanced_pause_show_message(const AdvancedPauseMessage message);
-    #endif // ADVANCED_PAUSE_FEATURE
+    #if ENABLED(FILAMENT_CHANGE_FEATURE)
+      void lcd_filament_change_show_message(const FilamentChangeMessage message);
+    #endif // FILAMENT_CHANGE_FEATURE
 
   #else
 
@@ -97,7 +96,7 @@
 
   #endif
 
-  #if ENABLED(FILAMENT_LCD_DISPLAY) && ENABLED(SDSUPPORT)
+  #if ENABLED(FILAMENT_LCD_DISPLAY)
     extern millis_t previous_lcd_status_ms;
   #endif
 
@@ -125,32 +124,37 @@
     #define EN_REPRAPWORLD_KEYPAD_UP      (_BV(REPRAPWORLD_BTN_OFFSET + BLEN_REPRAPWORLD_KEYPAD_UP))
     #define EN_REPRAPWORLD_KEYPAD_LEFT    (_BV(REPRAPWORLD_BTN_OFFSET + BLEN_REPRAPWORLD_KEYPAD_LEFT))
 
-    #define REPRAPWORLD_KEYPAD_MOVE_Z_DOWN  (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F3)
-    #define REPRAPWORLD_KEYPAD_MOVE_Z_UP    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F2)
-    #define REPRAPWORLD_KEYPAD_MOVE_Y_DOWN  (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_DOWN)
-    #define REPRAPWORLD_KEYPAD_MOVE_X_RIGHT (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_RIGHT)
-    #define REPRAPWORLD_KEYPAD_MOVE_Y_UP    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_UP)
-    #define REPRAPWORLD_KEYPAD_MOVE_X_LEFT  (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_LEFT)
+	#if ENABLED(ADC_KEYPAD)
+	  #define REPRAPWORLD_KEYPAD_MOVE_Z_DOWN  (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F3)
+	  #define REPRAPWORLD_KEYPAD_MOVE_Z_UP    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F2)
+	  #define REPRAPWORLD_KEYPAD_MOVE_HOME    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F1)
+	  #define REPRAPWORLD_KEYPAD_MOVE_Y_DOWN  (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_DOWN)
+	  #define REPRAPWORLD_KEYPAD_MOVE_X_RIGHT (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_RIGHT)
+	  #define REPRAPWORLD_KEYPAD_MOVE_MENU    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_MIDDLE)
+	  #define REPRAPWORLD_KEYPAD_MOVE_Y_UP    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_UP)
+	  #define REPRAPWORLD_KEYPAD_MOVE_X_LEFT  (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_LEFT)
 
-    #if ENABLED(ADC_KEYPAD)
-      #define REPRAPWORLD_KEYPAD_MOVE_HOME    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F1)
-      #define REPRAPWORLD_KEYPAD_MOVE_MENU    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_MIDDLE)
-
-      #if BUTTON_EXISTS(ENC)
-        #define LCD_CLICKED ((buttons & EN_C) || (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_MIDDLE))
-      #else
-        #define LCD_CLICKED (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_MIDDLE)
-      #endif
-    #else
-      #define REPRAPWORLD_KEYPAD_MOVE_HOME    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_MIDDLE)
+	  #if BUTTON_EXISTS(ENC)
+		#define LCD_CLICKED ((buttons & EN_C) || (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_MIDDLE))
+	  #else
+		#define LCD_CLICKED (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_MIDDLE)
+	  #endif
+	#else
+      #define REPRAPWORLD_KEYPAD_MOVE_Z_DOWN  (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F3)
+      #define REPRAPWORLD_KEYPAD_MOVE_Z_UP    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F2)
       #define REPRAPWORLD_KEYPAD_MOVE_MENU    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F1)
-      #if BUTTON_EXISTS(ENC)
-        #define LCD_CLICKED ((buttons & EN_C) || (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F1))
-      #else
-        #define LCD_CLICKED (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F1)
-      #endif
-    #endif
+      #define REPRAPWORLD_KEYPAD_MOVE_Y_DOWN  (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_DOWN)
+      #define REPRAPWORLD_KEYPAD_MOVE_X_RIGHT (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_RIGHT)
+      #define REPRAPWORLD_KEYPAD_MOVE_HOME    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_MIDDLE)
+      #define REPRAPWORLD_KEYPAD_MOVE_Y_UP    (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_UP)
+      #define REPRAPWORLD_KEYPAD_MOVE_X_LEFT  (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_LEFT)
 
+	  #if BUTTON_EXISTS(ENC)
+		#define LCD_CLICKED ((buttons & EN_C) || (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F1))
+	  #else
+		#define LCD_CLICKED (buttons_reprapworld_keypad & EN_REPRAPWORLD_KEYPAD_F1)
+	  #endif
+	#endif
     #define REPRAPWORLD_KEYPAD_PRESSED      (buttons_reprapworld_keypad & ( \
                                               EN_REPRAPWORLD_KEYPAD_F3 | \
                                               EN_REPRAPWORLD_KEYPAD_F2 | \
@@ -168,32 +172,19 @@
     #define LCD_CLICKED false
   #endif
 
-#else // no LCD
-
+#else //no LCD
   inline void lcd_update() {}
   inline void lcd_init() {}
   inline bool lcd_hasstatus() { return false; }
   inline void lcd_setstatus(const char* const message, const bool persist=false) { UNUSED(message); UNUSED(persist); }
-  inline void lcd_setstatusPGM(const char* const message, const int8_t level=0) { UNUSED(message); UNUSED(level); }
-  inline void lcd_setalertstatusPGM(const char* message) { UNUSED(message); }
-  inline void lcd_status_printf_P(const uint8_t level, const char * const fmt, ...) { UNUSED(level); UNUSED(fmt); }
+  inline void lcd_setstatuspgm(const char* const message, const uint8_t level=0) { UNUSED(message); UNUSED(level); }
   inline void lcd_buttons_update() {}
   inline void lcd_reset_alert_level() {}
   inline bool lcd_detected() { return true; }
-  inline void lcd_refresh() {}
+
+  #define LCD_MESSAGEPGM(x) NOOP
+  #define LCD_ALERTMESSAGEPGM(x) NOOP
 
 #endif // ULTRA_LCD
 
-#define LCD_MESSAGEPGM(x)      lcd_setstatusPGM(PSTR(x))
-#define LCD_ALERTMESSAGEPGM(x) lcd_setalertstatusPGM(PSTR(x))
-
-void lcd_reset_status();
-
-#if ENABLED(AUTO_BED_LEVELING_UBL)
-  void lcd_mesh_edit_setup(float initial);
-  float lcd_mesh_edit();
-  void lcd_z_offset_edit_setup(float);
-  float lcd_z_offset_edit();
-#endif
-
-#endif // ULTRALCD_H
+#endif //ULTRALCD_H
